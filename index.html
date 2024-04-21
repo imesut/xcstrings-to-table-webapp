@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XCStrings to Table</title>
+
+    <link rel="stylesheet" href="css.css">
+
+    <script type="module">
+        import { parse } from '/csvparse.js'
+        document.csvParser = parse
+    </script>
+
+</head>
+
+<body>
+
+    <center>
+        <h1>XCStrings Table</h1>
+        <p>
+            Select and open a .xcstrings file, after the file is selected, a table of localizations will be displayed,
+            below.
+            <br><br>
+            Then you can copy and paste the table into another place to mmanage your localizations.
+            <br><br>
+            You can add new languages or update the strings with a csv file. CSV file should contain with key parameter.
+        </p>
+        <div id="drop-area">
+            <form class="my-form">
+                <p>Select .xcstrings file to convert into a table, csv file to merge translations with xcstrings file
+                </p>
+                <input type="file" id="fileElem" multiple accept=".xcstrings, .csv" onchange="handleFiles(this.files)">
+                <label class="button" for="fileElem">Select File (xcstrings or csv)</label>
+            </form>
+
+            <a id="downloadAnchorElem" style="display:none">Download Updated xcstring</a>
+        </div>
+
+        <div id="table"></div>
+
+    </center>
+
+    <script>
+
+        function prepareDownload() {
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(xcstringObject))
+            var dlAnchorElem = document.getElementById('downloadAnchorElem')
+            dlAnchorElem.setAttribute("href", dataStr)
+            dlAnchorElem.setAttribute("download", "updated.xcstrings")
+            dlAnchorElem.style.display = "block"
+        }
+
+        let dropArea = document.getElementById("drop-area")
+
+            ;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false)
+                document.body.addEventListener(eventName, preventDefaults, false)
+            })
+
+            ;['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false)
+            })
+
+            ;['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false)
+            })
+
+        dropArea.addEventListener('drop', handleDrop, false)
+
+        function preventDefaults(e) {
+            e.preventDefault()
+            e.stopPropagation()
+        }
+
+        function highlight(e) {
+            dropArea.classList.add('highlight')
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('active')
+        }
+
+        function handleDrop(e) {
+            var dt = e.dataTransfer
+            var files = dt.files
+
+            handleFiles(files)
+        }
+
+        function handleFiles(files) {
+            files = [...files]
+            files.forEach(processFile)
+        }
+
+
+        var xcstringObject = {}
+
+        function processFile(file) {
+            let reader = new FileReader()
+
+
+            if (file.name.endsWith(".xcstrings")) {
+                reader.readAsText(file)
+                reader.onloadend = function () {
+                    xcstringObject = JSON.parse(reader.result)
+                    generateTable(xcstringObject)
+                }
+            } else {
+                if (file.name.endsWith(".csv")) {
+                    reader.readAsText(file)
+                    reader.onloadend = function () {
+                        handleCsv(reader.result)
+                        prepareDownload()
+                    }
+                }
+            }
+        }
+
+        function handleCsv(csvBody) {
+
+            console.log(csvBody)
+            let result = document.csvParser(csvBody)
+
+            // Sets first to variable then drops it from array
+            let headers = result.shift()
+
+            if (headers[0] === "key") {
+                result.forEach(translation => {
+
+                    var i = 0
+                    let key = translation[0]
+
+                    headers.forEach(header => {
+
+                        console.log(headers[i], translation[i])
+                        // is not key
+                        if (i !== 0) {
+                            let langCode = headers[i]
+                            let val = translation[i]
+
+                            xcstringObject.strings[key].localizations[langCode] = {
+                                stringUnit: {
+                                    state: "translated",
+                                    value: translation[i]
+                                }
+                            }
+
+                        }
+
+                        i += 1
+
+                    })
+
+
+                })
+
+            }
+
+        }
+
+
+        function generateTable(json) {
+
+            let langListH = Object.keys(json.strings).map(key => Object.keys(json.strings[key].localizations))
+
+            let maxSize = Math.max(...(langListH.map(rec => rec.length)))
+            let headers = langListH.filter(rec => rec.length === maxSize)[0]
+
+
+            let content = `
+        <style>table, th, td {border: 1px solid black;}</style>
+        <table border>
+            <tr>
+                <td>key</td>
+        `
+
+            headers.forEach(langCode => {
+                content += `<td>${langCode}</td>`
+            })
+            content += `</tr>`
+
+            let strings = json.strings
+
+            let keys = Object.keys(strings)
+
+            let html =
+
+                keys.forEach(key => {
+                    let localizations = strings[key].localizations
+                    content += `<tr>`
+
+                    content += `<td>${key}</td>`
+                    headers.forEach(langCode => {
+
+                        let langContent = json.strings[key].localizations[langCode]
+
+                        if (langContent === undefined) {
+                            content += "<td></td>"
+                        } else {
+                            content += `<td>${langContent.stringUnit.value}</td>`
+                        }
+
+                    })
+                    content += `</tr>`
+
+                });
+
+            content += `</table>`
+
+            document.getElementById("table").innerHTML = content
+        }
+
+    </script>
+
+</body>
+
+</html>
