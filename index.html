@@ -7,7 +7,8 @@
     <title>XCStrings to Table</title>
 
     <link rel="stylesheet" href="css.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
 
     <script type="module">
         import { parse } from './csvparse.js'
@@ -18,7 +19,14 @@
 
 <body>
 
-    <a class="github-fork-ribbon" href="https://github.com/imesut/xcstrings-to-table-webapp" data-ribbon="View on GitHub" title="View on GitHub">
+    <style>
+        pre {
+            white-space: break-spaces;
+        }
+    </style>
+
+    <a class="github-fork-ribbon" href="https://github.com/imesut/xcstrings-to-table-webapp"
+        data-ribbon="View on GitHub" title="View on GitHub">
         View on GitHub
     </a>
 
@@ -170,11 +178,14 @@
 
         function generateTable(json) {
 
-            let langListH = Object.keys(json.strings).map(key => Object.keys(json.strings[key].localizations))
+            let theStrings = json.strings
 
-            let maxSize = Math.max(...(langListH.map(rec => rec.length)))
-            let headers = langListH.filter(rec => rec.length === maxSize)[0]
+            let localesFounded = Object.keys(theStrings)
+                .filter(key => Object.keys(theStrings[key]).includes("localizations"))
+                .map(key => Object.keys(json.strings[key].localizations))
 
+            let maxSize = Math.max(...(localesFounded.map(rec => rec.length)))
+            let allLocales = localesFounded.filter(rec => rec.length === maxSize)[0]
 
             let content = `
         <style>table, th, td {border: 1px solid black;}</style>
@@ -183,34 +194,40 @@
                 <td>key</td>
         `
 
-            headers.forEach(langCode => {
+            // add columns
+            allLocales.forEach(langCode => {
                 content += `<td>${langCode}</td>`
             })
+
             content += `</tr>`
 
             let strings = json.strings
 
-            let keys = Object.keys(strings)
+            let stringKeys = Object.keys(strings)
 
             let html =
 
-                keys.forEach(key => {
-                    let localizations = strings[key].localizations
-                    content += `<tr>`
+                stringKeys.forEach(key => {
 
-                    content += `<td>${key}</td>`
-                    headers.forEach(langCode => {
+                    if (Object.keys(strings[key]).includes("localizations")) {
 
-                        let langContent = json.strings[key].localizations[langCode]
+                        let localizations = strings[key].localizations
+                        content += `<tr>`
 
-                        if (langContent === undefined) {
-                            content += "<td></td>"
-                        } else {
-                            content += `<td>${langContent.stringUnit.value}</td>`
-                        }
+                        content += `<td>${key}</td>`
+                        allLocales.forEach(langCode => {
 
-                    })
-                    content += `</tr>`
+                            let langContent = json.strings[key].localizations[langCode]
+
+                            if (langContent === undefined) {
+                                content += "<td></td>"
+                            } else {
+                                content += `<td><pre>${langContent.stringUnit.value}</pre></td>`
+                            }
+
+                        })
+                        content += `</tr>`
+                    }
 
                 });
 
