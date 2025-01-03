@@ -59,8 +59,10 @@
 
     <script>
 
-        function prepareDownload() {
-            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(xcstringObject))
+        function prepareDownload(obj) {
+            console.log(JSON.stringify(obj))
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(obj, function replacer(key, value) { return value}))
+            console.log(dataStr)
             var dlAnchorElem = document.getElementById('downloadAnchorElem')
             dlAnchorElem.setAttribute("href", dataStr)
             dlAnchorElem.setAttribute("download", "updated.xcstrings")
@@ -110,7 +112,9 @@
         }
 
 
-        var xcstringObject = {}
+        var xcstringObject = {
+            "strings": {}
+        }
 
         function processFile(file) {
             let reader = new FileReader()
@@ -127,7 +131,6 @@
                     reader.readAsText(file)
                     reader.onloadend = function () {
                         handleCsv(reader.result)
-                        prepareDownload()
                     }
                 }
             }
@@ -135,7 +138,6 @@
 
         function handleCsv(csvBody) {
 
-            console.log(csvBody)
             let result = document.csvParser(csvBody)
 
             // Sets first to variable then drops it from array
@@ -149,11 +151,14 @@
 
                     headers.forEach(header => {
 
-                        console.log(headers[i], translation[i])
                         // is not key
                         if (i !== 0) {
                             let langCode = headers[i]
                             let val = translation[i]
+
+                            if(!Object.keys(xcstringObject.strings).includes(key)){
+                                xcstringObject.strings[key] = { localizations : {} }
+                            }
 
                             xcstringObject.strings[key].localizations[langCode] = {
                                 stringUnit: {
@@ -172,6 +177,9 @@
                 })
 
             }
+
+            console.log(xcstringObject)
+            prepareDownload(xcstringObject)
 
         }
 
